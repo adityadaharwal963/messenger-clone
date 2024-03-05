@@ -4,18 +4,28 @@
 import axios from "axios";
 import Input from "@/app/components/inputs/Input";
 import Button from "@/app/components/Button";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FieldValues, SubmitHandler, useForm } from 'react-hook-form';
 import AuthSocialButton from "./AuthSocialButton";
 import { BsGithub, BsGoogle } from 'react-icons/bs';
 import toast from "react-hot-toast";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { callbackify } from "util";
+import { useRouter } from "next/navigation";
 type Variant = 'LOGIN' | "REGISTER"
 const AuthForm = () => {
 
+    const router = useRouter();
+    const session = useSession();
     const [variant, setVariant] = useState<Variant>('LOGIN');
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if(session?.status == 'authenticated' ){
+            router.push('/users');
+        }
+    },[session?.status,router])
+
     const toggleVarient = useCallback(() => {
         if (variant == 'LOGIN') {
             setVariant('REGISTER');
@@ -44,7 +54,9 @@ const AuthForm = () => {
         if (variant == 'REGISTER') {
             //axios register
             axios.post('/api/register', data)   
+            .then(() => signIn('credentials', data))
             .catch(() => toast.error("somthing went wrong"))
+            .finally(()=> setIsLoading(false));
         }
         if (variant == 'LOGIN') {
             // NextAuth Singln
@@ -69,11 +81,14 @@ const AuthForm = () => {
         setIsLoading(true);
         signIn(action,{redirect:false})
         .then((callback) => {
+            console.log("errors");
             if (callback?.error) {
                 toast.error("invalid credentials");
+                
             }
             if (callback?.ok && !callback?.error) {
-                toast.success('Logged in with Github!');
+                toast.success('Logged in!');
+                router.push('/users');
             }
         })
         .finally(()=> setIsLoading(false));
